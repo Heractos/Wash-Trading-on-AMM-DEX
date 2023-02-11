@@ -16,4 +16,6 @@ the types and patterns of these malicious activities.
 
 This code accompanes the research paper:
 
-**[Wash Trading Detection on AMM Decentralized Exchanges]()**  
+**[Wash Trading Detection on AMM Decentralized Exchanges](dvev)**   
+Henrikas Krukauskas   
+New York University Shanghai, 2022.
