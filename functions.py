@@ -266,48 +266,16 @@ def keep_active_adresses(all_swaps, at_least_swaps):
     return all_swaps
 
 
-def plot_address_txs(all_txs_df, target_address, pair_info):
+def plot_addresses(data, target, other, pair_info):
 
-    data = all_txs_df.loc[
-        all_txs_df.contract_address == pair_info["pair_contract_address"]
-    ].copy()
-    # pair_info = get_pair_info(most_common_pair_address, token_pair_abi, bsc_scan_api_key, w3) # takes some time
-    # pair_info["signatures"] = signatures
-
-    token0_price_in_token1 = pd.to_numeric(
-        (data.amount1In + data.amount1Out) / (data.amount0In + data.amount0Out)
-    ) * (
-        10 ** (pair_info["token0_decimals"] - pair_info["token1_decimals"])
-    )  # accounting for token decimals shown in contract
-    data["token0_price_in_token1"] = token0_price_in_token1
-    token1_price_in_token0 = 1 / token0_price_in_token1
-    data["token1_price_in_token0"] = token1_price_in_token0
-    data["swap_size"] = np.log2(
-        pd.to_numeric(
-            (data.amount1In + data.amount1Out + data.amount0In + data.amount0Out)
-        )
-    )  # swap size for scatter dots sizes. log to normalize sizes a bit
-    data[f"is_{target_address}"] = (
-        data.To == target_address
-    )  # to distinguish between the target bot and other adresses
-    data["is_buying"] = pd.to_numeric(
-        (data.amount1In + data.amount0Out)
-    ) > pd.to_numeric((data.amount0In + data.amount1Out))
-    # marker_colors_buy={True: "green", False:"skyblue"}
-    # marker_colors_sell={True: "red", False:"lightpink"}
+    data["swap_size"] = np.log2(pd.to_numeric(data.amount1In + data.amount1Out + data.amount0In + data.amount0Out))
+    
     colour_other_side = {True: "paleturquoise", False: "lightpink"}
     colour_target_side = {True: "green", False: "red"}
     size_buy = {True: 100, False: 30}
     size_sell = {True: 100, False: 30}
     labels = {True: "Transactions", False: "t"}
 
-    # data_buy = data[(data.amount1In + data.amount0Out) > (data.amount0In + data.amount1Out)]
-    # data_sell = data[~((data.amount1In + data.amount0Out) > (data.amount0In + data.amount1Out))]
-    data_target_tx = data[data[f"is_{target_address}"] == True]
-    data_other_tx = data[~data[f"is_{target_address}"] == True]
-
-    # data_other_tx = data[~((data.amount1In + data.amount0Out) > (data.amount0In + data.amount1Out))]
-    # print(data)
     sns.set()
     ax = sns.lineplot(
         data=data,
@@ -318,32 +286,29 @@ def plot_address_txs(all_txs_df, target_address, pair_info):
         alpha=0.3,
     )
 
-    # if len(data_sell)>0:
-    #     sns.scatterplot(data=data_sell, x="DateTime",y="token0_price_in_token1", c=data_sell[f"is_{address}"].map(marker_colors_sell), linewidth=0, size="swap_size",sizes=(20, 200))
-    # if len(data_buy)>0:
-    #     ax2=sns.scatterplot(data=data_buy, x="DateTime",y="token0_price_in_token1", c=data_buy[f"is_{address}"].map(marker_colors_buy), linewidth=0, size="swap_size",sizes=(20, 200))
-    if len(data_other_tx) > 0:
-        if len(data_other_tx) > 1000:
-            data_other_tx[::10]
+    if len(other) > 0:
+        if len(other) > 1000:
+            other[::10]
         sns.scatterplot(
-            data=data_other_tx,
+            data=other,
             x="DateTime",
             y="token0_price_in_token1",
-            c=data_other_tx[f"is_buying"].map(colour_other_side),
+            c=other[f"is_buying"].map(colour_other_side),
             marker="x",
             linewidth=2,
             size="swap_size",
             sizes=(10, 100),
             alpha=0.8,
         )
-    if len(data_target_tx) > 0:
-        if len(data_target_tx) > 1000:
-            data_target_tx[::10]
+
+    if len(target) > 0:
+        if len(target) > 1000:
+            target[::10]
         ax2 = sns.scatterplot(
-            data=data_target_tx,
+            data=target,
             x="DateTime",
             y="token0_price_in_token1",
-            edgecolor=data_target_tx[f"is_buying"].map(colour_target_side),
+            edgecolor=target[f"is_buying"].map(colour_target_side),
             facecolors="none",
             linewidth=1,
             size="swap_size",
@@ -351,12 +316,13 @@ def plot_address_txs(all_txs_df, target_address, pair_info):
             alpha=0.8,
         )
 
-    ax.figure.set_size_inches(20, 8)
+    ax.figure.set_size_inches(20, 10)
     ax.set_title(
-        f"Address: {target_address}\n{pair_info['token1_symbol']} price in {pair_info['token0_symbol']}\nPair: ({pair_info['pair_contract_address']})",
+        f"{pair_info['token1_symbol']} price in {pair_info['token0_symbol']}\nPair: ({pair_info['pair_contract_address']})",
         fontsize=15,
         y=1.05,
     )
+
     ax.set_ylabel(f"{pair_info['token0_symbol']}")
     ax.set_xlabel("Date")
     legend_elements = [
@@ -434,146 +400,5 @@ def plot_address_txs(all_txs_df, target_address, pair_info):
         ),
     ]
     ax.legend(handles=legend_elements, facecolor="white", framealpha=1)
+    # plt.savefig(fname = f'images/{pair_info["token1_symbol"]} price in {pair_info["token0_symbol"]}.png')
     plt.show()
-
-
-def find_other_txs_and_analyze_them(all_txs_df, target_address, pair_info):
-    data = all_txs_df.loc[
-        all_txs_df.contract_address == pair_info["pair_contract_address"]
-    ].copy()
-    # pair_info = get_pair_info(most_common_pair_address, token_pair_abi, bsc_scan_api_key, w3) # takes some time
-    # pair_info["signatures"] = signatures
-
-    token0_price_in_token1 = pd.to_numeric(
-        (data.amount1In + data.amount1Out) / (data.amount0In + data.amount0Out)
-    ) * (
-        10 ** (pair_info["token0_decimals"] - pair_info["token1_decimals"])
-    )  # accounting for token decimals shown in contract
-    data["token0_price_in_token1"] = token0_price_in_token1
-    token1_price_in_token0 = 1 / token0_price_in_token1
-    data["token1_price_in_token0"] = token1_price_in_token0
-    data["swap_size"] = np.log2(
-        pd.to_numeric(
-            (data.amount1In + data.amount1Out + data.amount0In + data.amount0Out)
-        )
-    )  # swap size for scatter dots sizes. log to normalize sizes a bit
-    data[f"is_{target_address}"] = (
-        data.To == target_address
-    )  # to distinguish between the target bot and other adresses
-    data["is_buying"] = pd.to_numeric(
-        (data.amount1In + data.amount0Out)
-    ) > pd.to_numeric((data.amount0In + data.amount1Out))
-    # marker_colors_buy={True: "green", False:"skyblue"}
-    # marker_colors_sell={True: "red", False:"lightpink"}
-    colour_other_side = {True: "paleturquoise", False: "lightpink"}
-    colour_target_side = {True: "green", False: "red"}
-    size_buy = {True: 100, False: 30}
-    size_sell = {True: 100, False: 30}
-    labels = {True: "Transactions", False: "t"}
-
-    # data_buy = data[(data.amount1In + data.amount0Out) > (data.amount0In + data.amount1Out)]
-    # data_sell = data[~((data.amount1In + data.amount0Out) > (data.amount0In + data.amount1Out))]
-    data_target_tx = data[data[f"is_{target_address}"] == True]
-    data_other_tx = data[~data[f"is_{target_address}"] == True]
-
-    target_average = data_target_tx["swap_size"].mean()
-    st_dev_target = data_target_tx["swap_size"].std()
-
-    other_average = data_other_tx["swap_size"].mean()
-    st_dev_other = data_other_tx["swap_size"].std()
-
-    print(target_average)
-    print(st_dev_target)
-
-    print(other_average)
-    print(st_dev_other)
-
-    print(data.shape[0])
-    # wash_trading_data = data[(data["swap_size"] - target_average) / st_dev_target < 3]
-    wash_trading_data = data[((data["swap_size"] - target_average) / st_dev_target) < 3]
-    display(data[((data["swap_size"] - target_average) / st_dev_target) >= 3])
-    print(wash_trading_data.shape[0])
-    print(len(wash_trading_data.To.unique()))
-    print(wash_trading_data.To.unique())
-    wash_trading_data_no_d = wash_trading_data.drop_duplicates(
-        subset=[
-            "To",
-            "percent_token0_volume_by_address",
-            "percent_token1_volume_by_address",
-        ]
-    )
-    print(wash_trading_data_no_d["percent_token0_volume_by_address"].sum())
-    print(wash_trading_data_no_d["percent_token1_volume_by_address"].sum())
-
-    sns.set()
-    ax = sns.lineplot(
-        data=data,
-        x="DateTime",
-        y="token0_price_in_token1",
-        color="black",
-        linewidth=0.5,
-        alpha=0.3,
-    )
-
-    if len(wash_trading_data) > 0:
-        if len(wash_trading_data) > 1000:
-            pot = wash_trading_data[::200]
-        sns.scatterplot(
-            data=wash_trading_data,
-            x="DateTime",
-            y="token0_price_in_token1",
-            edgecolor=wash_trading_data[f"is_buying"].map(colour_target_side),
-            facecolors="none",
-            linewidth=1,
-            size="swap_size",
-            sizes=(20, 200),
-            alpha=0.8,
-        )
-
-    ax.figure.set_size_inches(20, 8)
-    ax.set_title(
-        f"Address: {target_address}\n{pair_info['token1_symbol']} price in {pair_info['token0_symbol']}\nPair: ({pair_info['pair_contract_address']})",
-        fontsize=15,
-        y=1.05,
-    )
-    ax.set_ylabel(f"{pair_info['token0_symbol']}")
-    ax.set_xlabel("Date")
-    legend_elements = [
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            linestyle="None",
-            label="Potential Wash Traders",
-            markerfacecolor="none",
-            markeredgecolor=colour_target_side[True],
-            markersize=0,
-            linewidth=2,
-        ),
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            linestyle="None",
-            label="Buy transactions",
-            markerfacecolor="none",
-            markeredgecolor=colour_target_side[True],
-            markersize=8,
-            linewidth=2,
-        ),
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            linestyle="None",
-            label=f"Sell transactions",
-            markerfacecolor="none",
-            markeredgecolor=colour_target_side[False],
-            markersize=8,
-            linewidth=2,
-        ),
-    ]
-    ax.legend(handles=legend_elements, facecolor="white", framealpha=1)
-    plt.show()
-    display(wash_trading_data)
-    return
