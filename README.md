@@ -13,6 +13,8 @@ New York University Shanghai, 2022.
 
 ## Examples of the Results
 
+All these results represent a collected data of the latest 6 hours collected at that point in time.
+
 ### **BUSD price in MBP**
 
 The shape of wash traded transactions' dataframe: **(53, 22)**.  
